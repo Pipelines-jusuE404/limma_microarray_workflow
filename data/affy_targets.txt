@@ -1,0 +1,8 @@
+Name	FileName	Target
+Shoot12h.1	COLD_CONTROL_12H_SHOOT_REP1.cel	c12h
+Shoot12h.2	COLD_CONTROL_12H_SHOOT_REP2.cel	c12h
+ColdShoot6h.1	COLD_6H_SHOOT_REP1.cel	t6h
+ColdShoot6h.2	COLD_6H_SHOOT_REP2.cel	t6h
+ColdShoot12h.1	COLD_12H_SHOOT_REP1.cel	t12h
+ColdShoot12h.2	COLD_12H_SHOOT_REP2.cel	t12h
+

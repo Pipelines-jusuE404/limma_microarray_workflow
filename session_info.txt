@@ -1,0 +1,43 @@
+R version 3.4.4 (2018-03-15)
+Platform: i386-w64-mingw32/i386 (32-bit)
+Running under: Windows >= 8 x64 (build 9200)
+
+Matrix products: default
+
+locale:
+[1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United States.1252   
+[3] LC_MONETARY=English_United States.1252 LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.1252    
+
+attached base packages:
+[1] stats4    parallel  stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] gplots_3.0.1           GO.db_3.5.0            GOstats_2.44.0         graph_1.56.0          
+ [5] Category_2.44.0        Matrix_1.2-12          limma_3.34.9           ape_5.1               
+ [9] bindrcpp_0.2           ath1121501.db_3.2.3    org.At.tair.db_3.5.0   BiocInstaller_1.28.0  
+[13] ath1121501cdf_2.18.0   affyQCReport_1.56.0    lattice_0.20-35        ath1121501probe_2.18.0
+[17] AnnotationDbi_1.40.0   IRanges_2.12.0         S4Vectors_0.16.0       forcats_0.2.0         
+[21] stringr_1.2.0          dplyr_0.7.4            purrr_0.2.4            readr_1.1.1           
+[25] tidyr_0.8.0            tibble_1.4.2           ggplot2_2.2.1          tidyverse_1.2.1       
+[29] affy_1.56.0            Biobase_2.38.0         BiocGenerics_0.24.0   
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.16           bindr_0.1.1            xml2_1.2.0             XVector_0.18.0        
+ [5] magrittr_1.5           splines_3.4.4          hms_0.4.2              zlibbioc_1.24.0       
+ [9] rvest_0.3.2            mnormt_1.5-5           bit_1.1-12             xtable_1.8-2          
+[13] colorspace_1.3-2       R6_2.2.2               rlang_0.2.0            simpleaffy_2.54.0     
+[17] broom_0.4.4            gcrma_2.50.0           modelr_0.1.2           genefilter_1.60.0     
+[21] gtools_3.5.0           assertthat_0.2.0       bit64_0.9-7            digest_0.6.15         
+[25] GSEABase_1.40.1        preprocessCore_1.40.0  Rgraphviz_2.22.0       RCurl_1.95-4.10       
+[29] haven_1.1.1            gdata_2.18.0           compiler_3.4.4         cellranger_1.1.0      
+[33] pillar_1.2.2           scales_0.5.0           Biostrings_2.46.0      annotate_1.56.2       
+[37] lubridate_1.7.4        jsonlite_1.5           pkgconfig_2.0.1        rstudioapi_0.7        
+[41] munsell_0.4.3          affyPLM_1.54.0         blob_1.1.1             httr_1.3.1            
+[45] plyr_1.8.4             caTools_1.17.1         tools_3.4.4            grid_3.4.4            
+[49] AnnotationForge_1.20.0 nlme_3.1-131.1         gtable_0.2.0           KernSmooth_2.23-15    
+[53] psych_1.8.4            DBI_1.0.0              cli_1.0.0              RBGL_1.54.0           
+[57] survival_2.41-3        readxl_1.1.0           lazyeval_0.2.1         yaml_2.1.19           
+[61] crayon_1.3.4           affyio_1.48.0          RColorBrewer_1.1-2     reshape2_1.4.3        
+[65] bitops_1.0-6           glue_1.2.0             RSQLite_2.1.1          memoise_1.1.0         
+[69] stringi_1.1.7          XML_3.98-1.11          foreign_0.8-69        
