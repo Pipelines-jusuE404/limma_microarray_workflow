@@ -20,11 +20,12 @@ library(limma)
 library(ath1121501cdf)
 library(gplots)
 
-# see the data
+# locate the data
 data_dir <- "data/CEL/"
 file <- dir(data_dir)%>%
   # filter only the .cel files
   str_subset(pattern = ".cel")
+
 ################################################
 # what is the identity of those cell files?
 readLines(paste0(data_dir,file[1]))
@@ -33,78 +34,160 @@ readLines(paste0(data_dir,file[1]))
 
 # ath1121501probe is a table that define the probename with sequence and position
 # Print some probe sequences and their mapping positions for first Affy ID
-print.data.frame(ath1121501probe[1:3,1:4])
+# print.data.frame(ath1121501probe[1:3,1:4])
+head(ath1121501probe)
 
 # import all the cel file 
 mydata <- ReadAffy(filenames = paste0(data_dir,file))
+
+
+#######################################################
+# give a look at the raw data
+#######################################################
+
 # what is the structure of mydata?
 str(mydata)
 # here are the expression data before the normalization
-mydata@assayData$exprs
-boxplot(mydata@assayData$exprs)
-#hide the outline
-boxplot(mydata@assayData$exprs,outline=F)
+# the value of expression are inside the exprs object
+head(mydata@assayData$exprs)
+
+# see the distribution of the raw data
+# boxplot(mydata@assayData$exprs)
+# #hide the outline
+# boxplot(mydata@assayData$exprs,outline=F)
+
+# porduce a sample of the data to avoid overplotting (change it according to the dataset size)
+distribution <-
+  mydata@assayData$exprs%>%
+  tbl_df()%>%
+  # just use a sample of the data to have an idea of the dostribution
+  filter((1:nrow(mydata@assayData$exprs))%in%sample(size = 100000,1:nrow(mydata@assayData$exprs)))%>%
+  gather(key = sample,value = raw)
+
+# set the range of possible outlier
+distribution_outlier <- lapply(split(distribution,f = distribution$sample),function(x){
+  x%>%
+    mutate(bottom = boxplot.stats(x$raw)$stat[c(1)],
+           top = boxplot.stats(x$raw)$stat[c(5)])
+})%>% bind_rows()
+
+# boxplot with outlier
+distribution%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot()
+
+# boxplot without outlier
+distribution_outlier%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot(outlier.shape = NA)+coord_cartesian(ylim = c(distribution_outlier$bottom,distribution_outlier$top))
+
+# violin plot removing outlier
+distribution_outlier%>%
+  group_by(sample)%>%
+  filter(raw>bottom&raw<top)%>%
+  ggplot(aes(x=sample,y = raw))+geom_violin()+coord_cartesian(ylim = c(distribution_outlier$bottom,distribution_outlier$top))
+
 # data looks really not normalized
 # produce a report of the data
 QCReport(mydata, file="output/ExampleQC.pdf")
 
+#############################################
+# data normalization using RMA
+#############################################
+
 # Generates RMA e Background correcting Normalizing Calculating Expression
 eset_rma <- rma(mydata)
-# see the new distribution
-boxplot(eset_rma@assayData$exprs)
-# data are very well normalized
+
+# see the new distribution ofter normalization
+# boxplot(eset_rma@assayData$exprs)
+
+# porduce a sample of the data to avoid overplotting (change it according to the dataset size)
+distributionRMA <-
+  eset_rma@assayData$exprs%>%
+  tbl_df()%>%
+  # just use a sample of the data to have an idea of the dostribution
+  # filter((1:nrow(eset_rma@assayData$exprs))%in%sample(size = 100000,1:nrow(eset_rma@assayData$exprs)))%>%
+  gather(key = sample,value = raw)
+
+# set the range of possible outlier
+distribution_outlierRMA <- lapply(split(distributionRMA,f = distributionRMA$sample),function(x){
+  x%>%
+    mutate(bottom = boxplot.stats(x$raw)$stat[c(1)],
+           top = boxplot.stats(x$raw)$stat[c(5)])
+})%>% bind_rows()
+
+# boxplot with outlier
+distributionRMA%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot()
+
+# boxplot without outlier
+distribution_outlierRMA%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot(outlier.shape = NA)+coord_cartesian(ylim = c(distribution_outlierRMA$bottom,distribution_outlierRMA$top))
+
+# violin plot removing outlier
+distribution_outlierRMA%>%
+  group_by(sample)%>%
+  filter(raw>bottom&raw<top)%>%
+  ggplot(aes(x=sample,y = raw))+geom_violin()+coord_cartesian(ylim = c(distribution_outlierRMA$bottom,distribution_outlierRMA$top))
+
+# data are very well normalized after RMA
 
 # Prints first 4 rows in data frame structure.
-exprs(eset_rma)[1:4,1:2]
+#exprs(eset_rma)[1:4,1:2]
+head(exprs(eset_rma))
 
 # exprs(eset_rma) <- 2^(exprs(eset_rma)
 ## Generic approach for calculating mean values for any sample combination.
 # make the values as linear
-mydf <- 2^exprs(eset_rma)
-# what is the distribution of the result rable
-boxplot(mydf,outline=F)
-# remove the outline
-boxplot(mydf)
-# still the data are well organized
+# mydf <- 2^exprs(eset_rma)
+# # what is the distribution of the result rable
+# boxplot(mydf,outline=F)
+# # remove the outline
+# boxplot(mydf)
+# # still the data are well organized
 
 # here is an example to calculate the mean expression per probe (collapsing the replicate)
-myList <- tapply(colnames(mydf), c(1,1,2,2,3,3), list)
-names(myList) <- sapply(myList, paste, collapse="_")
-mymean <- sapply(myList, function(x) rowMeans(mydf[,x]))
-head(mymean)
+# myList <- tapply(colnames(mydf), c(1,1,2,2,3,3), list)
+# names(myList) <- sapply(myList, paste, collapse="_")
+# mymean <- sapply(myList, function(x) rowMeans(mydf[,x]))
+# head(mymean)
+# # collapse the replicate calculating the mean expression per probe
+# 
 
-## Generate MAS 5.0 P/M/A calls and combine RMA intensities, P/M/A calls
-## and Wilcoxon p-values in one data frame.
+## Generate MAS 5.0 P/M/A calls and combine RMA intensities, P/M/A calls and Wilcoxon p-values in one data frame.
 eset_pma <- mas5calls(mydata)
 
 str(eset_pma@assayData$exprs)
-eset_pma@assayData$se.exprs
+head(eset_pma@assayData$se.exprs)
 
 my_frame <- data.frame(exprs(eset_rma), exprs(eset_pma),assayDataElement(eset_pma, "se.exprs"))
+
 # Sort columns by cel file name
 my_frame <- my_frame[, sort(names(my_frame))] 
 head(my_frame)
 
 ## Export results to text file that can be imported into Excel
-write_csv(my_frame, "data/my_file.csv")
+write_csv(my_frame, "data/MAS_PMA_file.csv")
 
+###############################
+# annotate the probe
+###############################
 
-# Loads required annotation package.
+# Loads required annotation.
 Annot <- data.frame(ACCNUM=sapply(contents(ath1121501ACCNUM),paste,collapse=", "),
                     SYMBOL=sapply(contents(ath1121501SYMBOL),paste,collapse=", "),
                     DESC=sapply(contents(ath1121501GENENAME),paste,collapse=", "))
-Annot[3:4,]
+
+head(Annot)
                                                                                   
 ## Merge annotations with expression data
-all <- merge(Annot, my_frame, by.x=0, by.y=0, all=T)
-all2 <- right_join(Annot%>%
+# all <- merge(Annot, my_frame, by.x=0, by.y=0, all=T)
+all <- right_join(Annot%>%
              mutate(rowname=rownames(.)),
            my_frame%>%
              mutate(rowname=rownames(.))
              ,by="rowname")
 
 ## Export data to text file that can be imported into Excel
-write_csv(all,"my_annot_file.csv")
+write_csv(all,"output/my_annot_file.csv")
 
 # build a correlation matrix
 d <- cor(2^exprs(eset_rma), method="pearson")
@@ -114,6 +197,7 @@ plot.phylo(as.phylo(hc), type="p", edge.col = 4,edge.width = 2, show.node.label 
 
 #####################################################################################
 # analysis of the DEG
+####################################################################################
 
 # Import sample information
 targets <- readTargets("data/affy_targets.txt")
@@ -132,7 +216,7 @@ eset <- rma(data)
 pData(eset)
 
 # Exports all affy expression values to tab delimited text file. The MAS 5.0 P/M/A calls can be retrieved with the simpleaffy package or with the affy package like this: 'eset <- mas5calls(data); write.exprs(eset, file="my_PMA.txt")'.
-write.exprs(eset, file="data/affy_all.txt")
+write.exprs(eset, file="data/affy_RMA.txt")
 
 # Creates appropriate design matrix. Alternatively, such a design matrix can be created in any spreadsheet program and then imported into R.
 design <- model.matrix(~ -1+factor(c(1,1,2,2,3,3)))
