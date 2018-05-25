@@ -90,7 +90,7 @@ distribution_outlier%>%
 QCReport(mydata, file="output/ExampleQC.pdf")
 
 #############################################
-# data normalization using RMA
+# data normalization using RMA or MAS5
 #############################################
 
 # Generates RMA e Background correcting Normalizing Calculating Expression
@@ -152,20 +152,90 @@ head(exprs(eset_rma))
 # # collapse the replicate calculating the mean expression per probe
 # 
 
-## Generate MAS 5.0 P/M/A calls and combine RMA intensities, P/M/A calls and Wilcoxon p-values in one data frame.
+# MAS5 normalizationt
+eset_mas5 <- mas5(mydata)
+## Generate MAS 5.0 P/M/A calls
 eset_pma <- mas5calls(mydata)
 
-str(eset_pma@assayData$exprs)
-head(eset_pma@assayData$se.exprs)
+str(eset_mas5@assayData$exprs)
+head(eset_mas5@assayData$exprs)
 
+# porduce a sample of the data to avoid overplotting (change it according to the dataset size)
+distributionMAS5 <-
+  eset_mas5@assayData$exprs%>%
+  tbl_df()%>%
+  # just use a sample of the data to have an idea of the dostribution
+  # filter((1:nrow(eset_rma@assayData$exprs))%in%sample(size = 100000,1:nrow(eset_rma@assayData$exprs)))%>%
+  gather(key = sample,value = raw)
+
+# set the range of possible outlier
+distribution_outlierMAS5 <- lapply(split(distributionMAS5,f = distributionMAS5$sample),function(x){
+  x%>%
+    mutate(bottom = boxplot.stats(x$raw)$stat[c(1)],
+           top = boxplot.stats(x$raw)$stat[c(5)])
+})%>% bind_rows()
+
+# boxplot with outlier notice this is a linear scale
+distributionMAS5%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot()
+
+# boxplot without outlier
+distribution_outlierMAS5%>%
+  ggplot(aes(x=sample,y = raw))+geom_boxplot(outlier.shape = NA)+coord_cartesian(ylim = c(distribution_outlierMAS5$bottom,distribution_outlierMAS5$top))
+
+# violin plot removing outlier
+distribution_outlierMAS5%>%
+  group_by(sample)%>%
+  filter(raw>bottom&raw<top)%>%
+  ggplot(aes(x=sample,y = raw))+geom_violin()+coord_cartesian(ylim = c(distribution_outlierMAS5$bottom,distribution_outlierMAS5$top))
+
+# data are very well normalized also after MAS5
+
+## Combine MAS 5.0 P/M/A calls and RMA intensities, P/M/A calls and Wilcoxon p-values in one data frame.
 my_frame <- data.frame(exprs(eset_rma), exprs(eset_pma),assayDataElement(eset_pma, "se.exprs"))
 
 # Sort columns by cel file name
 my_frame <- my_frame[, sort(names(my_frame))] 
 head(my_frame)
 
+# see the summary of the different values, expecially the position of the absent compared to present probes
+RMA_MAS5PMA <- my_frame%>%
+  data.frame()%>%
+  mutate(probe=rownames(.))%>%
+  tbl_df()%>%
+  select(c(19,1:18))%>%
+  gather(key = sample,value = exp, seq(from=2,to = 19,by = 3))%>%
+  gather(key = sample.2,value = PMA, seq(from=2,to = 12,by = 2))%>%
+  gather(key = sample.3,value = pval, 2:7)%>%
+  # ensure that the same sample is displayed in the same order
+  arrange(sample,sample.2,sample.3)%>%
+  select(probe,sample,exp,PMA,pval)
+
+# try to make some plot to see the distribution of the sample
+# are pval and PMA class correlated?
+RMA_MAS5PMA%>%
+  # add a weight to the 
+  ggplot(aes(x=pval,fill=PMA))+geom_density(alpha=0.6)
+
+# make ANOVA
+model <- aov(data = RMA_MAS5PMA, formula = pval~PMA)
+summary(model)
+TukeyHSD(model)
+
+# P are most of the time value with very small pval.
+
+# is expression and PMA correlated
+RMA_MAS5PMA%>%
+  ggplot(aes(x=exp,fill=PMA))+geom_density(alpha=0.6)
+
+# make ANOVA
+model <- aov(data = RMA_MAS5PMA, formula = pval~PMA)
+summary(model)
+TukeyHSD(model)
+
+
 ## Export results to text file that can be imported into Excel
-write_csv(my_frame, "data/MAS_PMA_file.csv")
+write_csv(my_frame, "data/RMA_MAS5PMA_file.csv")
 
 ###############################
 # annotate the probe
@@ -177,6 +247,7 @@ Annot <- data.frame(ACCNUM=sapply(contents(ath1121501ACCNUM),paste,collapse=", "
                     DESC=sapply(contents(ath1121501GENENAME),paste,collapse=", "))
 
 head(Annot)
+# save also Annot2
                                                                                   
 ## Merge annotations with expression data
 # all <- merge(Annot, my_frame, by.x=0, by.y=0, all=T)
@@ -210,7 +281,8 @@ data <- ReadAffy(filenames=paste0(data_dir,targets$FileName))
 # Normalization with RMA
 eset <- rma(data)
                    
-## If eset contains absolute intensity values like MAS5 results, then they should be transformed to log2 (or loge) values for limma. RMA/GCRMA generate log2 values and MAS5 produces absolute values.
+## If eset contains absolute intensity values like MAS5 results, then they should be transformed to log2 (or loge) values for limma. 
+# RMA/GCRMA generate log2 values and MAS5 produces absolute values.
 # exprs(eset) <- log2(exprs(eset))
 # Lists the analyzed file names.
 pData(eset)
@@ -220,9 +292,9 @@ write.exprs(eset, file="data/affy_RMA.txt")
 
 # Creates appropriate design matrix. Alternatively, such a design matrix can be created in any spreadsheet program and then imported into R.
 design <- model.matrix(~ -1+factor(c(1,1,2,2,3,3)))
-design
 # Assigns column names.
 colnames(design) <- c("group1", "group2", "group3")
+design
 # Fits a linear model for each gene based on the given series of arrays.
 fit <- lmFit(eset, design)
 # Creates appropriate contrast matrix to perform all pairwise comparisons. Alternatively, such a contrast matrix can be created in any spreadsheet program and then imported into R. For complex experiments one can also use this function to compute a contrast matrix with all possible pairwise comparisons.
@@ -241,15 +313,23 @@ fit2 <- eBayes(fit2)
 
 # Generates list of top 10 ('number=10') differentially expressed genes sorted by B-values ('sort.by=B') for each of the three comparison groups ('coef=1') in this sample set. The summary table contains the following information: logFC is the log2-fold change, the AveExpr is the average expression value accross all arrays and channels, the moderated t-statistic (t) is the logFC to its standard error, the P.Value is the associated p-value, the adj.P.Value is the p-value adjusted for multiple testing and the B-value (B) is the log-odds that a gene is differentially expressed (the-higher-the-better). Usually one wants to base gene selection on the adjusted P-value rather than the t- or B-values. More details on this can be found in the limma PDF manual (type 'limmaUsersGuide()') or on this FAQ page.
 
-# group2-group1
-topTable(fit2, coef=1, adjust="fdr", sort.by="B", number=10)
-# group3-group2
-topTable(fit2, coef=2, adjust="fdr", sort.by="B", number=10)
-# group3-group1
-topTable(fit2, coef=3, adjust="fdr", sort.by="B", number=10)
+# the coef of the contrast is the one defined in the contrast matrix
+coef<-seq_along(colnames(contrast.matrix))
+names(coef) <- colnames(contrast.matrix)
 
-# Exports complete limma statistics table for first comparison group ('coef=1') to tab delimited text file.
-write_csv(topTable(fit2, coef=1, adjust="fdr", sort.by="B", number=50000), "limma_complete.csv")
+# is now possible to save the result of all the comparisons
+list_comparison <- lapply(coef,function(x){
+  df <- topTable(fit2, coef=1, adjust="fdr", sort.by="B", number=dim(fit2$coefficients)[1])
+  # add the row namo as probe variable
+  df%>%
+    mutate(probe=rownames(.))
+})
+
+# Exports complete limma statistics table for first comparison group to tab delimited text file.
+# also attach the annottion
+# write_csv(topTable(fit2, coef=1, adjust="fdr", sort.by="B", number=50000), "limma_complete.csv")
+
+lapply(list_comparison,function())
 
 # Creates venn diagram of all changed genes with p-value equal or less than 0.05.
 # it is already considering only the adj.p-value
